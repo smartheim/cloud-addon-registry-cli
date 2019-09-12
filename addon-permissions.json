@@ -1,0 +1,96 @@
+{
+  "HW_BLUETOOTH": {
+    "id": "HW_BLUETOOTH",
+    "label": "Bluetooth Hardware",
+    "description": "Allows access to the BlueZ deamon.",
+    "standalone": true
+  },
+  "HW_IC2": {
+    "id": "HW_IC2",
+    "label": "I2C Hardware",
+    "description": "Allow access to the `/dev/i2c-*` device files",
+    "standalone": true
+  },
+  "HW_W1": {
+    "id": "HW_W1",
+    "label": "OneWire Hardware",
+    "description": "Allow access to the `/sys/bus/w1/` system bus device files",
+    "standalone": true
+  },
+  "HW_GPIO": {
+    "id": "HW_GPIO",
+    "label": "Generic input/output pins",
+    "description": "An Addon is not able to inject a kernel driver into the host system for gpio kernel access. But this permission allows access to all userspace gpio subsystems, like leds-gpio, gpio-fan, w1-gpio (one-wire), spi_gpio (SPI), i2c-gpio (I2C) and many more listed in https://www.kernel.org/doc/html/v4.17/driver-api/gpio/drivers-on-gpio.html#subsystem-drivers-using-gpio",
+    "standalone": true
+  },
+  "HW_USB": {
+    "id": "HW_USB",
+    "label": "USB Hardware",
+    "description": "Allows you to enumerate and interact with usb devices via libusb-1",
+    "standalone": true
+  },
+  "HW_NETWORK": {
+    "id": "HW_NETWORK",
+    "label": "Network management access",
+    "description": "Allows you to enumerate and manipulate the host network. This is a powerful permission as it can intercept and reroute all network traffic. An accompanying documentation should explain why this permission is required.",
+    "standalone": true
+  },
+  "DISK_QUOTA_500": {
+    "id": "DISK_QUOTA_500",
+    "label": "500 MB disk quota",
+    "description": "Lift the default 100 mb restriction of storage space.",
+    "standalone": true
+  },
+  "DISK_QUOTA_1000": {
+    "id": "DISK_QUOTA_1000",
+    "label": "1000 MB disk quota",
+    "description": "Lift the default 100 mb restriction of storage space.",
+    "standalone": true
+  },
+  "DISK_QUOTA_MAX": {
+    "id": "DISK_QUOTA_MAX",
+    "label": "No disk quota",
+    "description": "Removes the default 100 mb restriction of storage space.",
+    "standalone": true
+  },
+  "CPU_MAX": {
+    "id": "CPU_MAX",
+    "label": "No CPU limitation",
+    "description": "CPU Time is limited to 20%, except if this permission is granted."
+  },
+  "MEM_500": {
+    "id": "MEM_500",
+    "label": "Up to 500MB main memory",
+    "description": "Lift the default 200 mb restriction of main memory usage."
+  },
+  "MEM_1000": {
+    "id": "MEM_1000",
+    "label": "Up to 1000MB main memory",
+    "description": "Lift the default 200 mb restriction of main memory usage."
+  },
+  "MEM_MAX": {
+    "id": "MEM_MAX",
+    "label": "No main memory restriction",
+    "description": "Removes the default 200 mb restriction of main memory usage."
+  },
+  "THINGS": {
+    "id": "THINGS",
+    "label": "Access to all Things",
+    "description": "An Addon usually only have access to its own Things and via **State Filters** users may grant access to additional Things. This is not practical for a backup like Addon that needs access to all Things."
+  },
+  "THINGS_STATES": {
+    "id": "THINGS_STATES",
+    "label": "Access to all Thing States",
+    "description": "For Addons that want to reflect / mirror the entire openHAB X state, this permission is required. It allows access to the entire state database. This might violate privacy and allows the Addon to access sensible data like passwords and access tokens!"
+  },
+  "RULES": {
+    "id": "RULES",
+    "label": "Access to the rule engine",
+    "description": "This permission allows to create and run rules, stop rules, schedule and remove rules."
+  },
+  "CONFIG_ALL": {
+    "id": "CONFIG_ALL",
+    "label": "Full configuration access",
+    "description": "Extends access to all configuration files. Usually only own Addon configuration is visible to an Addon. This is a powerful permission and only backup like Addons should ever need this."
+  }
+}

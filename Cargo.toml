@@ -1,0 +1,28 @@
+[package]
+name = "ohx-addon-publish"
+version = "0.0.1"
+authors = ["David Gräff <david.graeff@web.de>"]
+edition = "2018"
+license = "MIT"
+description = "This is the CLI to automate building and publishing an OHX home automation addon"
+readme = "readme.md"
+keywords = ["home_automation", "home automation"]
+categories = ["api-bindings"]
+repository = "https://github.com/openhab-nodes/cloud-addon-registry-cli"
+
+[dependencies]
+env_logger = {version="^0.6", features=["termcolor", "atty", "humantime"] }
+structopt = "^0.3"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1.0"
+dirs = "2.0.2"
+log = "0.4.8"
+reqwest = { version ="^0.9", default-features = false, features=["rustls-tls"] }
+failure = "^0.1"
+
+# Parsing of the addons.yml file
+serde_yaml = "0.8.9"
+regex = { version ="1.3.1", default-features = false, features=["std"] }
+
+[profile.release]
+lto = true

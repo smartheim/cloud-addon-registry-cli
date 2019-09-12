@@ -1,0 +1,46 @@
+# This is the docker compose version tag
+version: '3.7'
+services:
+  ohx-addon-name:
+    build:
+      context: ./
+    ports:
+      - "5000:5000"
+    permissions:
+      mandatory: ["HW_BLUETOOTH"]
+      optional: []
+    firewall_allow:
+      - "www.google.com"
+      - "*.example.com"
+      - "8.8.8.8"
+      - "8.8.8.8/24"
+      - "*"
+    depends_on:
+      - mqttbroker
+  mqttbroker:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - logvolume:/var/log
+    ports:
+      - "1883:1883"
+
+x-ohx-registry:
+  id: ohx-ci-test-addon
+  version: "1.0.0"
+  type: binding
+  authors: ["your name"]
+  license: MIT
+  title: "My addon"
+  titles:
+    de: "A translated title"
+  description: "A long description that *may* use markdown and \n line breaks"
+  manufacturers: ["Samsong"]
+  products: ["XT-1247"]
+  status:
+    code: AVAILABLE
+  homepage: "https://example.com"
+  github: "https://github.com/my/repository"
+
+x-runtime:
+  memory_min: 20
+  memory_max: 50

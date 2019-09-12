@@ -1,13 +1,16 @@
 #![deny(warnings)]
 
+pub mod dto;
+
 use structopt::StructOpt;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Read;
 
 use serde::Deserialize;
+use dto::addons;
 
-use log::{info, debug};
+use log::{info, debug, error};
 use env_logger::Env;
 
 #[derive(Debug, StructOpt)]
@@ -17,13 +20,14 @@ struct Opt {
     #[structopt(short, long, parse(from_occurrences))]
     verbose: u8,
 
-    /// Build directory. The default is out/
-    #[structopt(short, long, parse(from_os_str))]
-    build_directory: Option<PathBuf>,
+    /// Build directory. All intermediate build artifacts including the generated software containers
+    /// are stored in here. Just delete this directory to perform a clean build.
+    #[structopt(short, long, parse(from_os_str), default_value = "out")]
+    build_directory: PathBuf,
 
-    /// Container image directory. The default is ${BUILD_DIR}/images
-    #[structopt(long, parse(from_os_str))]
-    image_directory: Option<PathBuf>,
+    /// The input addon description file.
+    #[structopt(short,long, parse(from_os_str), default_value = "addons.yml")]
+    input_file: PathBuf,
 
     /// Only validate the addons.yml file and exit
     #[structopt(long)]
@@ -63,6 +67,25 @@ fn main() {
     env_logger::from_env(Env::default().default_filter_or(level)).default_format_timestamp(false).init();
     debug!("{:?}", opt);
 
+    // Read in yaml file and validate
+    let input_file = opt.input_file.to_str().unwrap();
+    let _input_file = match addons::open_validate_addons_file(input_file) {
+        Ok(v) => v,
+        Err(e) => {
+            match e.downcast::<std::io::Error>() {
+                Ok(_) => error!("Did not find the addon description file: {}!", input_file),
+                Err(e) => error!("Input file validation failed!\n{:?}", e)
+            };
+            return;
+        }
+    };
+
+    debug!("{} validated", input_file);
+
+    if opt.validate_only {
+        return;
+    }
+
     // Read OHX session
     let mut buffer = Vec::new();
     let session: Option<UserSession> = match File::open(dirs::config_dir().unwrap().join(".ohx_login")) {
@@ -82,10 +105,14 @@ fn main() {
 
     if let Some(_session) = &session {
         info!("Getting access token");
-
     }
 
     if session.is_none() {
         info!("You are not logged in");
     }
+
+    if opt.login_only {
+        return;
+    }
+
 }

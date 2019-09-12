@@ -15,6 +15,8 @@
     <list default="true" id="070dd0ad-9ab7-432b-9f91-99a988d72450" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -53,8 +55,8 @@
     </key>
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/tests" />
-      <recent name="$PROJECT_DIR$/src/dto" />
       <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/src/dto" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -79,7 +81,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1568277699919</updated>
-      <workItem from="1568277700995" duration="7252000" />
+      <workItem from="1568277700995" duration="10654000" />
     </task>
     <servers />
   </component>

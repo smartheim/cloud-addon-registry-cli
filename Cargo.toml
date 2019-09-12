@@ -28,6 +28,7 @@ reqwest = { version ="^0.9", default-features = false, features=["rustls-tls"], 
 
 [features]
 build-binary = ["env_logger", "structopt", "dirs", "log", "reqwest"]
+default = ["build-binary"]
 
 [[bin]]
 name = "ohx-addon-publish"

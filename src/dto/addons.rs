@@ -6,13 +6,14 @@ use std::io::Read;
 pub const REGISTRY_DATA_URL : &'static str ="https://raw.githubusercontent.com/openhab-nodes/addons-registry/master/extensions.json";
 pub const REGISTRY_METADATA_URL : &'static str ="https://raw.githubusercontent.com/openhab-nodes/addons-registry/master/extensions_stats.json";
 
+#[cfg(feature = "reqwest")]
 pub fn get_addons_registry(client: &reqwest::Client) -> Result<AddonEntryMap, failure::Error> {
     Ok(client.get(REGISTRY_DATA_URL).send()?.json()?)
 }
 
+#[cfg(feature = "reqwest")]
 pub fn get_addons_registry_metadata(client: &reqwest::Client) -> Result<AddonMapStats, failure::Error> {
-    let t = client.get(REGISTRY_METADATA_URL).send()?.text()?;
-    Ok(serde_json::from_str(&t)?)
+    Ok(client.get(REGISTRY_METADATA_URL).send()?.json()?)
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

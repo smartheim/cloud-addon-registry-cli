@@ -6,6 +6,7 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 use dto::addons;
@@ -332,7 +333,6 @@ fn main() {
             user_display_name: user_data.displayName.unwrap_or_default(),
         }
     };
-//TODO oauth
 
     info!("You are logged in as {} ({})", session.user_email, &session.user_id);
 
@@ -372,7 +372,7 @@ fn main() {
         None => {
             match addons::get_addons_registry(&client) {
                 Ok(v) => {
-// Write to cache
+                    // Write to cache
                     File::open(&registry_cache).unwrap().write_all(&serde_json::to_vec(&v).unwrap()).unwrap();
                     v
                 }
@@ -384,5 +384,20 @@ fn main() {
         }
     };
 
+    // Check for docker file
+    // Check for podman executable
+    info!("{} Checking podman", style("[3/4]").bold().dim());
+
+    let r = Command::new("podman version json")
+        .arg("version")
+        .arg("--format")
+        .arg("json")
+        .output();
+
+    if r.is_err()
+
+
     // TODO Get docker access token
+
+
 }

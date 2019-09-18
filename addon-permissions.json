@@ -81,7 +81,7 @@
   "THINGS_STATES": {
     "id": "THINGS_STATES",
     "label": "Access to all Thing States",
-    "description": "For Addons that want to reflect / mirror the entire openHAB X state, this permission is required. It allows access to the entire state database. This might violate privacy and allows the Addon to access sensible data like passwords and access tokens!"
+    "description": "For Addons that want to reflect / mirror the entire OHX state, this permission is required. It allows access to the entire state database. This might violate privacy and allows the Addon to access sensible data like passwords and access tokens!"
   },
   "RULES": {
     "id": "RULES",

@@ -1,0 +1,11 @@
+FROM dockcross/linux-armv7 as builder
+RUN mkdir /cpp && mkdir /cpp/build
+WORKDIR /cpp
+COPY main.cpp CMakeLists.txt .
+WORKDIR /cpp/build
+RUN rm -rf * && cmake -DCMAKE_BUILD_TYPE=Release ../ && cmake --build /cpp/build -j 4
+RUN ls -lh | grep app
+
+FROM scratch
+COPY --from=builder /cpp/build/app /app
+ENTRYPOINT ["/app"]

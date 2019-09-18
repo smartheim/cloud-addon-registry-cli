@@ -1,30 +1,30 @@
 #![deny(warnings)]
 
 pub mod dto;
+mod login;
+mod registry;
 
 use structopt::StructOpt;
 use std::path::PathBuf;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::process::Command;
+use std::process::Stdio;
 
 use serde::{Deserialize, Serialize};
 use dto::addons;
 
 use log::{info, debug, warn, error};
 use env_logger::Env;
-use std::time::SystemTime;
-use failure::_core::time::Duration;
 
 use console::{style, Emoji};
+use std::str::FromStr;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::thread;
+use tokio::codec::{FramedRead, LinesCodec};
 
-static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
-static PAPER: Emoji<'_, '_> = Emoji("📃  ", "");
-//static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
+pub static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍  ", "");
+pub static PAPER: Emoji<'_, '_> = Emoji("📃  ", "");
+pub static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
-const OAUTH_CLIENT_ID: &'static str = "addoncli";
+// as of https://github.com/containerd/containerd/blob/master/platforms/platforms.go#L88
+const ALLOWED_ARCHITECTURES: [&str; 4] = ["aarch64", "armhf", "i386", "amd64"];
 
 #[derive(Debug, StructOpt)]
 #[structopt(author, about)]
@@ -64,74 +64,8 @@ struct Opt {
     password: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
-struct UserSession {
-    pub refresh_token: Option<String>,
-    pub access_token: String,
-    // unix timestamp in seconds
-    pub access_token_expires: i64,
-    pub user_id: String,
-    pub user_email: String,
-    pub user_display_name: String,
-}
-
-#[derive(Serialize)]
-struct TokenRequestForRefreshToken {
-    refresh_token: String,
-    client_id: String,
-    grant_type: String,
-}
-
-#[derive(Serialize)]
-struct TokenRequestForDevice {
-    device_code: String,
-    client_id: String,
-    grant_type: String,
-}
-
-#[derive(Deserialize)]
-pub struct OAuthTokenResponse {
-    pub access_token: String,
-    pub token_type: String,
-    // "bearer"
-    pub expires_in: i64,
-    pub refresh_token: Option<String>,
-    pub scope: String, // Space delimiter
-}
-
-#[derive(Deserialize)]
-pub struct ErrorResult {
-    pub error: String,
-}
-
-impl From<String> for ErrorResult {
-    fn from(message: String) -> Self {
-        serde_json::from_str(&message).unwrap()
-    }
-}
-
-
-/// Users id, email, display name and a few more information
-#[allow(non_snake_case)]
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct FirebaseAuthUser {
-    pub localId: Option<String>,
-    pub email: Option<String>,
-    pub displayName: Option<String>,
-}
-
-/// Your user information query might return zero, one or more [`FirebaseAuthUser`] structures.
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct FirebaseAuthUserResponse {
-    pub users: Vec<FirebaseAuthUser>,
-}
-
-
 fn main() {
     let client = reqwest::Client::new();
-    let spinner_style = ProgressStyle::default_spinner()
-        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-        .template("{prefix:.bold.dim} {spinner} {wide_msg}");
 
     // Parse command line and setup logger
     let opt = Opt::from_args();
@@ -145,259 +79,294 @@ fn main() {
 
 
     // Read in yaml file and validate
-    let input_file = opt.input_file.to_str().unwrap();
-    info!("{} Validating input file {}", style("[2/4]").bold().dim(), input_file);
-    let _input_file = match addons::open_validate_addons_file(input_file) {
+    let input_file_name: PathBuf = opt.input_file;
+    let input_file_name_str = input_file_name.to_str().unwrap();
+    println!("{} Validating input file {}", style("[1/6]").bold().dim(), input_file_name_str);
+    let input_file = match addons::open_validate_addons_file(input_file_name_str) {
         Ok(v) => v,
         Err(e) => {
             match e.downcast::<std::io::Error>() {
-                Ok(_) => error!("{} Did not find the addon description file: {}!", LOOKING_GLASS, input_file),
+                Ok(_) => error!("{} Did not find the addon description file: {}!", LOOKING_GLASS, input_file_name_str),
                 Err(e) => error!("Input file validation failed!\n{:?}", e)
             };
             return;
         }
     };
 
+    // Determine docker files and architectures
+    struct BuildInstruction {
+        filename: String,
+        arch: String,
+        image_name: String,
+        build: bool,
+        uploaded: bool,
+        image_size: i64,
+    }
+    let mut build_instructions: Vec<BuildInstruction> = Vec::new();
+
+    for entry in input_file_name.parent().unwrap().read_dir().unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_file() {
+            let filename = entry.file_name().into_string().unwrap();
+            if filename.starts_with("Dockerfile") {
+                let arch = if &filename == "Dockerfile" {
+                    "amd64"
+                } else {
+                    &filename[11..]
+                };
+                if !ALLOWED_ARCHITECTURES.contains(&arch) {
+                    warn!("A Dockerfile architecture is not supported: {}", arch);
+                } else {
+                    build_instructions.push(BuildInstruction {
+                        arch: arch.to_owned(),
+                        image_name: format!("docker.io/openhabx/{}_{}:{}", &input_file.x_ohx_registry.id, arch, &input_file.x_ohx_registry.version),
+                        filename,
+                        build: false,
+                        uploaded: false,
+                        image_size: 0,
+                    });
+                }
+            }
+        }
+    }
+
+    if build_instructions.len() == 0 {
+        error!("No Dockerfiles found in {}. Cannot build Addon.\nPlease check the documentation or clone one the scaffolding repositories for working examples.",
+               input_file_name.parent().unwrap().to_str().unwrap());
+        return;
+    }
+
     if opt.validate_only {
         return;
     }
 
-    // Read OHX session
-    let mut buffer = Vec::new();
-    let session: Option<UserSession> = match File::open(dirs::config_dir().unwrap().with_file_name(".ohx_login")) {
-        Ok(mut f) => {
-            match f.read_to_end(&mut buffer) {
-                Ok(_) => {
-                    match serde_json::from_slice(&buffer) {
-                        Ok(v) => Some(v),
-                        Err(_) => None
-                    }
-                }
-                _ => None
-            }
-        }
-        Err(_) => None
-    };
-
-    let session: Option<UserSession> = if let Some(session) = &session {
-        info!("{} Getting access token", style("[2/4]").bold().dim());
-
-        if let Some(refresh_token) = &session.refresh_token {
-            let token_request = TokenRequestForRefreshToken {
-                refresh_token: refresh_token.clone(),
-                client_id: OAUTH_CLIENT_ID.to_string(),
-                grant_type: "refresh_token".to_string(),
-            };
-
-            let r = client.post("oauth.openhabx.com/token").form(&token_request).send();
-            if r.is_err() {
-                error!("{} Failed to contact oauth.openhabx.com/token!\n{:?}", style("[2/4]").bold().dim(), r.err().unwrap());
-                return;
-            }
-            let mut r = r.unwrap();
-            if r.status() != 200 {
-                warn!("Could not refresh access token. Login required");
-                None
-            } else {
-                let r: OAuthTokenResponse = r.json().unwrap();
-                Some(UserSession {
-                    refresh_token: session.refresh_token.clone(),
-                    access_token: r.access_token,
-                    access_token_expires: chrono::Utc::now().timestamp() + r.expires_in - 10,
-                    user_id: session.user_id.clone(),
-                    user_email: session.user_email.clone(),
-                    user_display_name: session.user_display_name.clone(),
-                })
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let session: UserSession = if session.is_some() {
-        session.unwrap()
-    } else {
-        #[derive(Serialize)]
-        struct AuthRequest {
-            client_id: String,
-            client_name: String,
-            response_type: String,
-            scope: String,
-        };
-        let token_request = AuthRequest {
-            client_id: OAUTH_CLIENT_ID.to_string(),
-            client_name: "OHX Addon Registry CLI".to_string(),
-            response_type: "device".to_string(),
-            scope: "offline_access addons profile".to_string(),
-        };
-        #[derive(Deserialize)]
-        pub struct DeviceFlowResponse {
-            pub device_code: String,
-            pub user_code: String,
-            pub verification_uri: String,
-            pub interval: u32,
-            pub expires_in: i64,
-        }
-
-        let r = client.post("oauth.openhabx.com/authorize").form(&token_request).send();
-        if r.is_err() {
-            error!("{} Failed to contact oauth.openhabx.com/authorize!\n{:?}", style("[2/4]").bold().dim(), r.err().unwrap());
-            return;
-        }
-        let mut r = r.unwrap();
-        if r.status() != 200 {
-            let message = match r.status().as_u16() {
-                400 => serde_json::from_str::<ErrorResult>(r.text().as_ref().unwrap()).unwrap().error,
-                _ => r.text().unwrap()
-            };
-            error!("{} Could not start authorisation process: {}", style("[2/4]").bold().dim(), &message);
-            return;
-        }
-
-        let device_flow_response: DeviceFlowResponse = r.json().unwrap();
-        warn!("{} Please authorize the CLI to publish Addons on your behalf.\n\tURL: {}", style("[2/4]").bold().dim(), &device_flow_response.verification_uri);
-        let _ = webbrowser::open(&device_flow_response.verification_uri);
-
-        let expires_in = chrono::Utc::now().timestamp() + device_flow_response.expires_in;
-
-        let pb = ProgressBar::new(device_flow_response.expires_in as u64);
-        pb.set_style(spinner_style.clone());
-        pb.set_prefix("[2/4]");
-
-        let token_response: Option<OAuthTokenResponse> = loop {
-            let diff = expires_in - chrono::Utc::now().timestamp();
-            pb.set_message(&format!("Waiting for authorizsation! Request expires in {} s.", diff));
-            pb.inc(2);
-            thread::sleep(Duration::from_secs(2));
-
-            let token_request = TokenRequestForDevice {
-                device_code: device_flow_response.device_code.clone(),
-                client_id: OAUTH_CLIENT_ID.to_string(),
-                grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
-            };
-            let response = client.post("oauth.openhabx.com/token").form(&token_request).send();
-            if response.is_err() {
-                error!("{} Failed to contact oauth.openhabx.com/token!\n{:?}", style("[2/4]").bold().dim(), response.err().unwrap());
-                return;
-            }
-            let mut response = response.unwrap();
-            if response.status() == 200 {
-                let r: OAuthTokenResponse = r.json().unwrap();
-                break (Some(r));
-            }
-            if response.status() == 400 {
-                let response = ErrorResult::from(response.text().unwrap());
-                if &response.error != "authorization_pending" {
-                    error!("{} Server response: {}", style("[2/4]").bold().dim(), &response.error);
-                    break (None);
-                }
-            }
-            if diff < 0 {
-                error!("Request expired");
-                break (None);
-            }
-        };
-
-        pb.finish_with_message("done!");
-
-        if token_response.is_none() {
-            return;
-        }
-        let token_response = token_response.unwrap();
-
-        // get user information if possible
-        let user_data: FirebaseAuthUser = match client.get("oauth.openhabx.com/userinfo").bearer_auth(&token_response.access_token).send() {
-            Ok(mut response) => {
-                let response: Result<FirebaseAuthUserResponse, _> = response.json();
-                if let Ok(response) = response {
-                    response.users.into_iter().next().unwrap()
-                } else {
-                    error!("{} Unexpected response userinfo response!\n{:?}", style("[2/4]").bold().dim(), response.err().unwrap());
-                    return;
-                }
-            }
-            Err(err) => {
-                error!("{} Failed to contact oauth.openhabx.com/userinfo!\n{:?}", style("[2/4]").bold().dim(), err);
-                return;
-            }
-        };
-
-        UserSession {
-            refresh_token: token_response.refresh_token.clone(),
-            access_token: token_response.access_token,
-            access_token_expires: chrono::Utc::now().timestamp() + token_response.expires_in - 10,
-            user_id: user_data.localId.unwrap_or_default(),
-            user_email: user_data.email.unwrap_or_default(),
-            user_display_name: user_data.displayName.unwrap_or_default(),
-        }
-    };
-
+    let session = login::perform_login(&client);
+    if session.is_none() {
+        return;
+    }
+    let session = session.unwrap();
     info!("You are logged in as {} ({})", session.user_email, &session.user_id);
 
     if opt.login_only {
         return;
     }
 
-    info!("{} {} Updating registry index", style("[3/4]").bold().dim(), PAPER);
-    let registry_cache = dirs::config_dir().unwrap().with_file_name(".ohx_registry_cache");
-    let cache_time: Option<Duration> = registry_cache.metadata().and_then(|m| m.modified()).ok().and_then(|m| SystemTime::now().duration_since(m).ok());
-    let registry_content: Option<addons::AddonEntryMap> = match cache_time {
-        Some(duration) =>
-            if duration.as_secs() < 500 {
-                let mut buffer = Vec::new();
-                match File::open(&registry_cache) {
-                    Ok(mut f) => {
-                        match f.read_to_end(&mut buffer) {
-                            Ok(_) => {
-                                match serde_json::from_slice(&buffer) {
-                                    Ok(v) => Some(v),
-                                    Err(_) => None
-                                }
-                            }
-                            _ => None
-                        }
-                    }
-                    Err(_) => None
-                }
-            } else {
-                None
-            },
-        _ => None
-    };
-
-    let _registry_cache = match registry_content {
-        Some(v) => v,
-        None => {
-            match addons::get_addons_registry(&client) {
-                Ok(v) => {
-                    // Write to cache
-                    File::open(&registry_cache).unwrap().write_all(&serde_json::to_vec(&v).unwrap()).unwrap();
-                    v
-                }
-                Err(e) => {
-                    error!("Failed to update registry cache: {:?}", e);
-                    return;
-                }
-            }
-        }
-    };
+    println!("{} {} Updating registry index", style("[3/6]").bold().dim(), PAPER);
+    let registry = registry::addon_registry(&client);
+    if registry.is_none() {
+        return;
+    }
+    let _registry = registry.unwrap();
 
     // Check for docker file
     // Check for podman executable
-    info!("{} Checking podman", style("[3/4]").bold().dim());
+    println!("{} Checking podman", style("[3/6]").bold().dim());
 
-    let r = Command::new("podman version json")
+    #[derive(Serialize, Deserialize)]
+    struct PodmanVersionResult {
+        #[serde(rename = "Version")]
+        version: String
+    }
+
+    let version: Result<PodmanVersionResult, _> = std::process::Command::new("podman")
         .arg("version")
         .arg("--format")
         .arg("json")
-        .output();
+        .output()
+        .and_then(|f| serde_json::from_slice(&f.stdout).map_err(|o| std::io::Error::from(o)));
 
-    if r.is_err()
+    if let Err(version) = version {
+        error!("'podman' is required to build software containers. Please check https://podman.io/getting-started/installation. {:?}", version);
+        return;
+    }
 
+    let podman_version = semver::Version::from_str(&version.unwrap().version).unwrap();
 
-    // TODO Get docker access token
+    if podman_version < semver::Version::new(1, 5, 0) {
+        error!("'podman' 1.5.0 or better is required. Please check https://podman.io/getting-started/installation.");
+    } else {
+        info!("Found Podman version {}", podman_version);
+    }
 
+    #[allow(non_snake_case)]
+    #[derive(Deserialize)]
+    struct DockerCredentials {
+        Username: String,
+        Secret: String,
+    }
 
+    // Get docker access credentials
+    let docker_credentials: DockerCredentials = match client.get("https://vault.openhabx.com/get/docker-access.json").bearer_auth(&session.access_token).send() {
+        Ok(mut response) => {
+            let response: Result<DockerCredentials, _> = response.json();
+            if let Ok(response) = response {
+                response
+            } else {
+                error!("Unexpected response!\n{:?}", response.err().unwrap());
+                return;
+            }
+        }
+        Err(err) => {
+            error!("Failed to contact https://vault.openhabx.com/get/docker-access.json!\n{:?}", err);
+            return;
+        }
+    };
+
+    let docker_credentials = docker_credentials.Username + ":" + &docker_credentials.Secret;
+
+    let spinner_style = ProgressStyle::default_spinner()
+        .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+        .template("{prefix:.bold.dim} {spinner} {wide_msg}");
+
+    let pb = ProgressBar::new(build_instructions.len() as u64);
+    pb.set_style(spinner_style.clone());
+    pb.set_prefix("[4/6]");
+
+    let runtime = Runtime::new().expect("Unable to start the runtime");
+
+    for build_instruction in &mut build_instructions {
+        pb.set_message(&format!("Building {} - arch {}", &build_instruction.filename, &build_instruction.arch));
+
+        let mut child = Command::new("podman")
+            .arg("build")
+            .arg("-t")
+            .arg(&build_instruction.image_name)
+            .arg("-f")
+            .arg(&build_instruction.filename)
+            .arg(format!("--creds={}", &docker_credentials))
+            .current_dir(input_file_name.parent().unwrap())
+            .stdout(Stdio::piped())
+            .spawn().unwrap();
+
+        let stdout = child.stdout().take().expect("no stdout");
+
+        let mut reader = FramedRead::new(stdout, LinesCodec::new());
+        let pb_output = pb.clone();
+        runtime.spawn(async move {
+            while let Some(line) = reader.next().await {
+                pb_output.set_message(&line.unwrap());
+            }
+        });
+
+        let result = runtime.block_on(child).expect("To block on podman until it finished");
+
+        build_instruction.build = result.success();
+
+        // Determine the size
+        let size_output = std::process::Command::new("podman")
+            .arg("image")
+            .arg("inspect")
+            .arg(&build_instruction.image_name)
+            .arg("--format={{.Size}}")
+            .output();
+        if let Ok(size_output) = size_output {
+            let size = String::from_utf8(size_output.stdout).unwrap();
+            let size = size.trim();
+            if let Ok(size) = size.parse() {
+                build_instruction.image_size = size;
+            }
+        }
+
+        pb.inc(1);
+        if !build_instruction.build {
+            error!("Failed to build {} - arch {}", build_instruction.filename, build_instruction.arch);
+        }
+    }
+    pb.finish();
+
+    let pb = ProgressBar::new(build_instructions.len() as u64);
+    pb.set_style(spinner_style.clone());
+    pb.set_prefix("[5/6]");
+
+    use tokio::{prelude::*, runtime::Runtime};
+    use tokio_process::Command;
+
+    println!("{} Uploading images", style("[5/6]").bold().dim());
+    for build_instruction in &mut build_instructions {
+        if !build_instruction.build {
+            pb.inc(1);
+            continue;
+        }
+        pb.set_message(&format!("Upload Image {}", &build_instruction.image_name));
+        let mut child = Command::new("podman")
+            .arg("push")
+            .arg(&build_instruction.image_name)
+            .arg(format!("--creds={}", &docker_credentials))
+            .current_dir(input_file_name.parent().unwrap())
+            .stdout(Stdio::piped())
+            .spawn().expect("starting podman for pushing images");
+
+        let stdout = child.stdout().take().expect("no stdout");
+
+        let pb_output = pb.clone();
+        let mut reader = FramedRead::new(stdout, LinesCodec::new());
+        runtime.spawn(async move {
+            while let Some(line) = reader.next().await {
+                pb_output.set_message(&line.unwrap());
+            }
+        });
+
+        let result = runtime.block_on(child).expect("To block on podman until it finished");
+
+        build_instruction.uploaded = result.success();
+        pb.inc(1);
+        if !build_instruction.uploaded {
+            error!("Failed to push {}", build_instruction.image_name);
+        }
+    }
+
+    pb.finish();
+
+    println!("{} Upload to registry", style("[6/6]").bold().dim());
+    let mut reg_entry = addons::AddonFileEntryPlusStats {
+        services: input_file.services,
+        x_ohx_registry: input_file.x_ohx_registry.clone(),
+        x_runtime: input_file.x_runtime,
+        archs: build_instructions.iter().map(|e| e.arch.to_owned()).collect(),
+        // Average of all arch sizes
+        size: (build_instructions.iter().fold(0, |acc, build_instruction| acc + build_instruction.image_size) / build_instructions.len() as i64),
+    };
+    for (_service_id, service) in &mut reg_entry.services {
+        // Only replace entries that have a "build" set
+        if service.build.is_none() {
+            continue;
+        }
+        service.build = None;
+        service.image = Some(format!("docker.io/openhabx/{}:{}", &input_file.x_ohx_registry.id, &input_file.x_ohx_registry.version))
+    }
+
+    match client.post("https://registry.openhabx.com/addon").bearer_auth(&session.access_token).json(&reg_entry).send() {
+        Ok(mut response) => {
+            if response.status() != 200 {
+                error!("Unexpected response!\n{:?}", response.text().unwrap());
+                return;
+            }
+        },
+        Err(err) => {
+            error!("Failed to contact https://vault.openhabx.com/get/docker-access.json!\n{:?}", err);
+            return;
+        }
+    };
+
+    // Print summary
+    println!("\nSummary for {} - Version {}\n", &input_file.x_ohx_registry.title, &input_file.x_ohx_registry.version);
+    use prettytable::{Table, Row, Cell, cell};
+    let mut table = Table::new();
+
+    // Add a row per time
+    table.add_row(prettytable::row!["Architecture", "Build", "Upload"]);
+    for build_instruction in &build_instructions {
+        table.add_row(Row::new(vec![
+            Cell::new(&build_instruction.arch),
+            match build_instruction.build {
+                true => Cell::new("true").style_spec("bFg"),
+                false => Cell::new("false").style_spec("BriH2")
+            },
+            match build_instruction.uploaded {
+                true => Cell::new("true").style_spec("bFg"),
+                false => Cell::new("false").style_spec("BriH2")
+            }]));
+    }
+    table.printstd();
 }

@@ -28,6 +28,10 @@ webbrowser = {version="0.5.2", optional = true }
 chrono = {version="0.4.9", optional = true }
 console = "0.9.0"
 indicatif = "0.12.0"
+semver = "0.9.0"
+tokio = "0.2.0-alpha.2"
+tokio-process = "0.3.0-alpha.2"
+prettytable-rs = "0.8.0"
 
 
 [features]

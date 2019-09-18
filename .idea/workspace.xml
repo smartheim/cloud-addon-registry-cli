@@ -14,7 +14,10 @@
   <component name="ChangeListManager">
     <list default="true" id="070dd0ad-9ab7-432b-9f91-99a988d72450" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+<<<<<<< Updated upstream
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+=======
+>>>>>>> Stashed changes
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -81,8 +84,12 @@
       <option name="presentableId" value="Default" />
       <updated>1568277699919</updated>
       <workItem from="1568277700995" duration="19436000" />
+<<<<<<< Updated upstream
       <workItem from="1568324586042" duration="11350000" />
       <workItem from="1568406620888" duration="2552000" />
+=======
+      <workItem from="1568324586042" duration="12633000" />
+>>>>>>> Stashed changes
     </task>
     <servers />
   </component>

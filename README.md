@@ -33,3 +33,11 @@ The tool does the following:
 5. Uploads the container images to the docker.io container registry.
 6. Updates your addon.yml file to point to the uploaded images.
 7. Adds or updates your addon to the OHX Addon Registry.
+
+
+## Cross compiling for c / c++
+
+One way is to use qemu (via a software container) and let the entire toolchain run under the target architecture:
+```
+sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+```

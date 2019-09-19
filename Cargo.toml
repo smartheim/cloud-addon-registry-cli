@@ -1,12 +1,12 @@
 [package]
 name = "ohx-addon-publish"
-version = "0.0.1"
+version = "0.0.1-preview"
 authors = ["David Gräff <david.graeff@web.de>"]
 edition = "2018"
 license = "MIT"
 description = "This is the CLI to automate building and publishing an OHX home automation addon"
 readme = "readme.md"
-keywords = ["home_automation", "home automation"]
+keywords = ["home_automation", "home", "automation"]
 categories = ["api-bindings"]
 repository = "https://github.com/openhab-nodes/cloud-addon-registry-cli"
 

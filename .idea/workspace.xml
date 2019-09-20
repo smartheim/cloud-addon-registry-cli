@@ -4,20 +4,18 @@
     <generated />
   </component>
   <component name="CMakeSettings">
-    <configurations>
-      <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
-    </configurations>
+    <configurations />
   </component>
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="070dd0ad-9ab7-432b-9f91-99a988d72450" name="Default Changelist" comment="">
+    <list default="true" id="f7665aa5-b8c8-44d9-b980-a59d92357667" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-<<<<<<< Updated upstream
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/dto/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/dto/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-=======
->>>>>>> Stashed changes
+      <change beforePath="$PROJECT_DIR$/src/registry.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/registry.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -28,37 +26,19 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Rust File" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="ZHyRNBch" />
   </component>
-  <component name="ProjectId" id="1QjIhkzqgHhAmBHIKlsqNUnK48v" />
+  <component name="ProjectId" id="1R5vnpLK531xLhzPg4atTFFG02m" />
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/tests" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
-  </component>
-  <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
-    </key>
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/tests" />
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/src/dto" />
-    </key>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -72,38 +52,47 @@
       </list>
     </option>
   </component>
+  <component name="RunManager">
+    <configuration name="build" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="channel" value="DEFAULT" />
+      <option name="command" value="build --package ohx-addon-publish --lib" />
+      <option name="allFeatures" value="false" />
+      <option name="nocapture" value="false" />
+      <option name="emulateTerminal" value="false" />
+      <option name="backtrace" value="SHORT" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo Command.build" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
     <option name="version" value="2" />
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="070dd0ad-9ab7-432b-9f91-99a988d72450" name="Default Changelist" comment="" />
-      <created>1568277699919</created>
+      <changelist id="f7665aa5-b8c8-44d9-b980-a59d92357667" name="Default Changelist" comment="" />
+      <created>1568969941319</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1568277699919</updated>
-      <workItem from="1568277700995" duration="19436000" />
-<<<<<<< Updated upstream
-      <workItem from="1568324586042" duration="11350000" />
-      <workItem from="1568406620888" duration="2552000" />
-=======
-      <workItem from="1568324586042" duration="12633000" />
->>>>>>> Stashed changes
+      <updated>1568969941319</updated>
+      <workItem from="1568969945027" duration="5652000" />
     </task>
     <servers />
-  </component>
-  <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="1" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="COLUMN_ORDER" />
-            </State>
+            <State />
           </value>
         </entry>
       </map>

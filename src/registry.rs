@@ -1,10 +1,12 @@
-use crate::dto::addons;
+use crate::dto::{addons, BuildInstruction};
 use std::fs::File;
 use std::io::{Write, Read};
 use std::time::{SystemTime, Duration};
-use log::{error};
+use log::error;
+use crate::dto::addons::AddonFileEntry;
+use crate::login::UserSession;
 
-pub fn addon_registry(client: &reqwest::Client) -> Option<addons::AddonEntryMap> {
+pub(crate) fn addon_registry(client: &reqwest::Client) -> Option<addons::AddonEntryMap> {
     let registry_cache = dirs::config_dir().unwrap().join(".ohx_registry_cache");
     let cache_time: Option<Duration> = registry_cache.metadata().and_then(|m| m.modified()).ok().and_then(|m| SystemTime::now().duration_since(m).ok());
     let mut registry_content: Option<addons::AddonEntryMap> = None;
@@ -39,4 +41,39 @@ pub fn addon_registry(client: &reqwest::Client) -> Option<addons::AddonEntryMap>
     };
 
     Some(registry_cache)
+}
+
+pub(crate) fn post_to_registry(client: &reqwest::Client, build_instructions: &mut Vec<BuildInstruction>,
+                        input_file: &AddonFileEntry,
+                        session: &UserSession) -> bool {
+    let mut reg_entry = addons::AddonFileEntryPlusStats {
+        services: input_file.services.clone(),
+        x_ohx_registry: input_file.x_ohx_registry.clone(),
+        x_runtime: input_file.x_runtime.clone(),
+        archs: build_instructions.iter().map(|e| e.arch.to_owned()).collect(),
+        // Average of all arch sizes
+        size: (build_instructions.iter().fold(0, |acc, build_instruction| acc + build_instruction.image_size) / build_instructions.len() as i64),
+    };
+    for (_service_id, service) in &mut reg_entry.services {
+        // Only replace entries that have a "build" set
+        if service.build.is_none() {
+            continue;
+        }
+        service.build = None;
+        service.image = Some(format!("docker.io/openhabx/{}:{}", &input_file.x_ohx_registry.id, &input_file.x_ohx_registry.version))
+    }
+
+    match client.post("https://registry.openhabx.com/addon").bearer_auth(&session.access_token).json(&reg_entry).send() {
+        Ok(mut response) => {
+            if response.status() != 200 {
+                error!("Unexpected response!\n{:?}", response.text().unwrap());
+                return false;
+            }
+        }
+        Err(err) => {
+            error!("Failed to contact https://vault.openhabx.com/get/docker-access.json!\n{:?}", err);
+            return false;
+        }
+    };
+    true
 }
